@@ -60,11 +60,12 @@ class syntax_plugin_repo extends DokuWiki_Syntax_Plugin {
      * Create output
      */
     function render($mode, Doku_Renderer $renderer, $data) {
+        global $INPUT;
 
         // construct requested URL
         $base  = hsc($data[0]);
         $title = ($data[1] ? hsc($data[1]) : $base);
-        $path  = hsc($_REQUEST['repo']);
+        $path  = hsc($INPUT->str('repo'));
         $url   = $base.$path;
 
         if ($mode == 'xhtml') {
@@ -84,25 +85,27 @@ class syntax_plugin_repo extends DokuWiki_Syntax_Plugin {
             }
             if ($path) $this->_location($path, $title, $renderer);
             $renderer->section_close();
+            return true;
 
             // for metadata renderer
         } elseif ($mode == 'metadata') {
             $renderer->meta['relation']['haspart'][$url] = 1;
+            return true;
         }
 
-        return $ok;
+        return false;
     }
 
     /**
      * Handle remote directories
      */
     function _directory($url, &$renderer, $path, $refresh) {
-        global $conf;
+        global $conf, $INPUT;
 
         $cache = getCacheName($url.$path, '.repo');
         $mtime = @filemtime($cache); // 0 if it doesn't exist
 
-        if (($mtime != 0) && !$_REQUEST['purge'] && ($mtime > time() - $refresh)) {
+        if (($mtime != 0) && !$INPUT->bool('purge') && ($mtime > time() - $refresh)) {
             $idx = io_readFile($cache, false);
             if ($conf['allowdebug']) $idx .= "\n<!-- cachefile $cache used -->\n";
         } else {
@@ -128,6 +131,7 @@ class syntax_plugin_repo extends DokuWiki_Syntax_Plugin {
         preg_match_all('/<li><a href="(.*?)">/i', $data, $results);
 
         $lvl++;
+        $items = array();
         foreach ($results[1] as $result) {
             if ($result == '../') continue;
 
@@ -177,12 +181,12 @@ class syntax_plugin_repo extends DokuWiki_Syntax_Plugin {
      * @author Esther Brunner <wikidesign@gmail.com>
      */
     function _cached_geshi($url, $refresh) {
-        global $conf;
+        global $conf, $INPUT;
 
         $cache = getCacheName($url, '.code');
         $mtime = @filemtime($cache); // 0 if it doesn't exist
 
-        if (($mtime != 0) && !$_REQUEST['purge'] &&
+        if (($mtime != 0) && !$INPUT->bool('purge') &&
                 ($mtime > time() - $refresh) &&
                 ($mtime > filemtime(DOKU_INC.'vendor/geshi/geshi/src/geshi.php'))) {
 
@@ -206,7 +210,7 @@ class syntax_plugin_repo extends DokuWiki_Syntax_Plugin {
             $geshi->set_encoding('utf-8');
             $geshi->enable_classes();
             $geshi->set_header_type(GESHI_HEADER_PRE);
-            $geshi->set_overall_class("code $language");
+            $geshi->set_overall_class("code $lang");
             $geshi->set_link_target($conf['target']['extern']);
 
             $hi_code = $geshi->parse_code();
